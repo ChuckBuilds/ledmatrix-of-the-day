@@ -4,11 +4,11 @@
   "properties": {
     "enabled": {
       "type": "boolean",
-      "default": true,
+      "default": false,
       "description": "Enable or disable the of-the-day plugin"
     },
     "update_interval": {
-      "type": "number",
+      "type": "integer",
       "default": 3600,
       "minimum": 60,
       "description": "Update interval in seconds (checks for new day)"
