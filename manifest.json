@@ -1,6 +1,7 @@
 {
   "id": "of-the-day",
   "name": "Of The Day Display",
+  "version": "1.0.1",
   "author": "ChuckBuilds",
   "description": "Display daily featured content like Word of the Day, Bible verses, or custom daily items. Supports multiple categories with rotating display and configurable data sources.",
   "category": "information",
