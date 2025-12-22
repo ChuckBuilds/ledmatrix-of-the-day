@@ -240,15 +240,22 @@ class OfTheDayPlugin(BasePlugin):
             category_config = self.categories.get(category_name, {})
             item_data = self.current_items.get(category_name, {})
             
+            self.logger.info(f"Displaying category: {category_name}, rotation_state: {self.rotation_state}")
+            self.logger.info(f"Item data keys: {list(item_data.keys()) if item_data else 'EMPTY'}")
+            self.logger.info(f"Item data: {item_data}")
+            
             # Rotate display content
             if current_time - self.last_rotation_time >= self.subtitle_rotate_interval:
                 self.rotation_state = (self.rotation_state + 1) % 2
                 self.last_rotation_time = current_time
+                self.logger.debug(f"Rotation state changed to: {self.rotation_state}")
             
             # Display based on rotation state
             if self.rotation_state == 0:
+                self.logger.info("Calling _display_title")
                 self._display_title(category_config, item_data)
             else:
+                self.logger.info("Calling _display_content")
                 self._display_content(category_config, item_data)
         
         except Exception as e:
@@ -305,10 +312,13 @@ class OfTheDayPlugin(BasePlugin):
     
     def _draw_bdf_text(self, draw, font, text: str, x: int, y: int, color: tuple = (255, 255, 255)):
         """Draw text supporting both BDF (FreeType Face) and PIL TTF fonts, similar to old manager."""
+        self.logger.debug(f"_draw_bdf_text called: text='{text}', x={x}, y={y}, font_type={type(font).__name__}, color={color}")
         try:
             # If we have a PIL font, use native text rendering
             if isinstance(font, ImageFont.ImageFont):
+                self.logger.debug(f"Using PIL ImageFont to draw text '{text}' at ({x}, {y})")
                 draw.text((x, y), text, fill=color, font=font)
+                self.logger.debug(f"Text drawn successfully with PIL")
                 return
             
             # Try to import freetype
@@ -316,6 +326,7 @@ class OfTheDayPlugin(BasePlugin):
                 import freetype
             except ImportError:
                 # If freetype not available, fallback to PIL
+                self.logger.warning("freetype not available, using PIL default font")
                 draw.text((x, y), text, fill=color, font=ImageFont.load_default())
                 return
             
@@ -356,40 +367,57 @@ class OfTheDayPlugin(BasePlugin):
                                 continue
                     current_x += font.glyph.advance.x >> 6
         except Exception as e:
-            self.logger.error(f"Error in _draw_bdf_text: {e}", exc_info=True)
+            self.logger.error(f"Error in _draw_bdf_text for text '{text}': {e}", exc_info=True)
             # Fallback to simple text drawing
             try:
+                self.logger.debug(f"Attempting fallback text drawing for '{text}'")
                 draw.text((x, y), text, fill=color, font=ImageFont.load_default())
-            except:
-                pass
+                self.logger.debug("Fallback text drawing succeeded")
+            except Exception as fallback_e:
+                self.logger.error(f"Fallback text drawing also failed: {fallback_e}", exc_info=True)
     
     def _display_title(self, category_config: Dict, item_data: Dict):
         """Display the title/word with subtitle, matching old manager layout."""
+        self.logger.info(f"_display_title called with item_data keys: {list(item_data.keys())}")
+        self.logger.info(f"Full item_data: {item_data}")
+        
         # Clear display first
         self.display_manager.clear()
+        self.logger.debug("Display cleared")
         
         # Use display_manager's image and draw directly
         draw = self.display_manager.draw
+        self.logger.debug(f"Display dimensions: {self.display_manager.width}x{self.display_manager.height}")
         
         # Load fonts - match old manager font usage
         try:
             title_font = ImageFont.truetype('assets/fonts/PressStart2P-Regular.ttf', 8)
-        except:
+            self.logger.debug("Loaded PressStart2P-Regular.ttf for title font")
+        except Exception as e:
+            self.logger.warning(f"Failed to load PressStart2P font: {e}, using fallback")
             title_font = self.display_manager.small_font if hasattr(self.display_manager, 'small_font') else ImageFont.load_default()
         
         try:
             body_font = ImageFont.truetype('assets/fonts/4x6-font.ttf', 6)
-        except:
+            self.logger.debug("Loaded 4x6-font.ttf for body font")
+        except Exception as e:
+            self.logger.warning(f"Failed to load 4x6 font: {e}, using fallback")
             body_font = self.display_manager.extra_small_font if hasattr(self.display_manager, 'extra_small_font') else ImageFont.load_default()
+        
+        self.logger.debug(f"Title font type: {type(title_font).__name__}, Body font type: {type(body_font).__name__}")
         
         # Get font heights
         try:
             title_height = self.display_manager.get_font_height(title_font)
-        except Exception:
+            self.logger.debug(f"Title font height: {title_height}")
+        except Exception as e:
+            self.logger.warning(f"Error getting title font height: {e}, using default 8")
             title_height = 8
         try:
             body_height = self.display_manager.get_font_height(body_font)
-        except Exception:
+            self.logger.debug(f"Body font height: {body_height}")
+        except Exception as e:
+            self.logger.warning(f"Error getting body font height: {e}, using default 8")
             body_height = 8
         
         # Layout matching old manager: margin_top = 8
@@ -399,33 +427,42 @@ class OfTheDayPlugin(BasePlugin):
         
         # Get title/word (JSON uses "title" not "word")
         title = item_data.get('title', item_data.get('word', 'N/A'))
-        self.logger.debug(f"Displaying title: {title}")
+        self.logger.info(f"Displaying title: '{title}'")
         
         # Get subtitle (JSON uses "subtitle")
         subtitle = item_data.get('subtitle', item_data.get('pronunciation', item_data.get('type', '')))
-        self.logger.debug(f"Displaying subtitle: {subtitle}")
+        self.logger.info(f"Displaying subtitle: '{subtitle}'")
         
         # Calculate title width for centering
         try:
             title_width = self.display_manager.get_text_width(title, title_font)
-        except Exception:
+            self.logger.debug(f"Title width calculated: {title_width}")
+        except Exception as e:
+            self.logger.warning(f"Error calculating title width using display_manager: {e}, trying fallback")
             if isinstance(title_font, ImageFont.ImageFont):
                 bbox = title_font.getbbox(title)
                 title_width = bbox[2] - bbox[0]
             else:
                 title_width = len(title) * 6
+            self.logger.debug(f"Title width (fallback): {title_width}")
         
         # Center the title horizontally
         title_x = (self.display_manager.width - title_width) // 2
         title_y = margin_top
+        self.logger.info(f"Drawing title '{title}' at position ({title_x}, {title_y}) with width {title_width}")
         
         # Draw title
-        self._draw_bdf_text(draw, title_font, title, title_x, title_y, color=self.title_color)
+        try:
+            self._draw_bdf_text(draw, title_font, title, title_x, title_y, color=self.title_color)
+            self.logger.debug(f"Title drawn successfully")
+        except Exception as e:
+            self.logger.error(f"Error drawing title: {e}", exc_info=True)
         
         # Draw underline below title (like old manager)
         underline_y = title_y + title_height + 1
         underline_x_start = title_x
         underline_x_end = title_x + title_width
+        self.logger.info(f"Drawing underline from ({underline_x_start}, {underline_y}) to ({underline_x_end}, {underline_y})")
         draw.line([(underline_x_start, underline_y), (underline_x_end, underline_y)], 
                  fill=self.title_color, width=1)
         
