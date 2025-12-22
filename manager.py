@@ -424,11 +424,17 @@ class OfTheDayPlugin(BasePlugin):
         title_x = (self.display_manager.width - title_width) // 2
         title_y = margin_top
         
-        # Draw title
-        self.logger.info(f"Drawing title '{title}' at ({title_x}, {title_y}) with font type {type(title_font).__name__}, color {self.title_color}")
+        # Draw title using display_manager.draw_text (proper method)
+        self.logger.info(f"Drawing title '{title}' at ({title_x}, {title_y}) with font type {type(title_font).__name__}")
         try:
-            self._draw_bdf_text(draw, title_font, title, title_x, title_y, color=self.title_color)
-            self.logger.info(f"Title '{title}' drawing completed")
+            self.display_manager.draw_text(
+                title,
+                x=title_x,
+                y=title_y,
+                color=self.title_color,
+                font=title_font
+            )
+            self.logger.debug(f"Title '{title}' drawn using display_manager.draw_text")
         except Exception as e:
             self.logger.error(f"Error drawing title '{title}': {e}", exc_info=True)
         
@@ -468,7 +474,14 @@ class OfTheDayPlugin(BasePlugin):
                                 line_width = len(line) * 6
                         line_x = (self.display_manager.width - line_width) // 2
                         
-                        self._draw_bdf_text(draw, body_font, line, line_x, current_y, color=self.subtitle_color)
+                        # Use display_manager.draw_text for subtitle
+                        self.display_manager.draw_text(
+                            line,
+                            x=line_x,
+                            y=current_y,
+                            color=self.subtitle_color,
+                            font=body_font
+                        )
                         current_y += body_height + 1
         
         self.display_manager.update_display()
@@ -528,8 +541,14 @@ class OfTheDayPlugin(BasePlugin):
         title_x = (self.display_manager.width - title_width) // 2
         title_y = margin_top
         
-        # Draw title (same as title screen for consistency)
-        self._draw_bdf_text(draw, title_font, title, title_x, title_y, color=self.title_color)
+        # Draw title using display_manager.draw_text (same as title screen)
+        self.display_manager.draw_text(
+            title,
+            x=title_x,
+            y=title_y,
+            color=self.title_color,
+            font=title_font
+        )
         
         # Draw underline below title (same as title screen)
         underline_y = title_y + title_height + 1
@@ -577,7 +596,14 @@ class OfTheDayPlugin(BasePlugin):
                             line_width = len(line) * 6
                     line_x = (self.display_manager.width - line_width) // 2
                     
-                    self._draw_bdf_text(draw, body_font, line, line_x, current_y, color=self.subtitle_color)
+                    # Use display_manager.draw_text for description
+                    self.display_manager.draw_text(
+                        line,
+                        x=line_x,
+                        y=current_y,
+                        color=self.subtitle_color,
+                        font=body_font
+                    )
                     
                     # Move to next line position
                     if i < len(actual_body_lines) - 1:  # Not the last line
