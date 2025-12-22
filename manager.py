@@ -253,8 +253,8 @@ class OfTheDayPlugin(BasePlugin):
     
     def _display_title(self, category_config: Dict, item_data: Dict):
         """Display the title/word."""
-        img = Image.new('RGB', (self.display_manager.matrix.width, 
-                               self.display_manager.matrix.height), 
+        img = Image.new('RGB', (self.display_manager.width, 
+                               self.display_manager.height), 
                        self.background_color)
         draw = ImageDraw.Draw(img)
         
@@ -274,13 +274,13 @@ class OfTheDayPlugin(BasePlugin):
         word = item_data.get('word', item_data.get('title', 'N/A'))
         bbox = draw.textbbox((0, 0), word, font=title_font)
         text_width = bbox[2] - bbox[0]
-        x_pos = (self.display_manager.matrix.width - text_width) // 2
+        x_pos = (self.display_manager.width - text_width) // 2
         draw.text((x_pos, 12), word, font=title_font, fill=self.title_color)
         
         # Draw pronunciation or type
         pronunciation = item_data.get('pronunciation', item_data.get('type', ''))
         if pronunciation:
-            draw.text((2, self.display_manager.matrix.height - 8), pronunciation, 
+            draw.text((2, self.display_manager.height - 8), pronunciation, 
                      font=subtitle_font, fill=self.subtitle_color)
         
         self.display_manager.image = img.copy()
@@ -288,8 +288,8 @@ class OfTheDayPlugin(BasePlugin):
     
     def _display_content(self, category_config: Dict, item_data: Dict):
         """Display the definition/content."""
-        img = Image.new('RGB', (self.display_manager.matrix.width,
-                               self.display_manager.matrix.height),
+        img = Image.new('RGB', (self.display_manager.width,
+                               self.display_manager.height),
                        self.background_color)
         draw = ImageDraw.Draw(img)
         
@@ -306,7 +306,7 @@ class OfTheDayPlugin(BasePlugin):
         words = content.split()
         lines = []
         current_line = []
-        max_width = self.display_manager.matrix.width - 4
+        max_width = self.display_manager.width - 4
         
         for word in words:
             test_line = ' '.join(current_line + [word])
@@ -324,7 +324,7 @@ class OfTheDayPlugin(BasePlugin):
         # Draw lines (max 4-5 lines depending on height)
         y_pos = 2
         line_height = 7
-        max_lines = (self.display_manager.matrix.height - 4) // line_height
+        max_lines = (self.display_manager.height - 4) // line_height
         
         for i, line in enumerate(lines[:max_lines]):
             draw.text((2, y_pos), line, font=font, fill=self.content_color)
@@ -335,8 +335,8 @@ class OfTheDayPlugin(BasePlugin):
     
     def _display_no_data(self):
         """Display message when no data is available."""
-        img = Image.new('RGB', (self.display_manager.matrix.width,
-                               self.display_manager.matrix.height),
+        img = Image.new('RGB', (self.display_manager.width,
+                               self.display_manager.height),
                        self.background_color)
         draw = ImageDraw.Draw(img)
         
@@ -352,8 +352,8 @@ class OfTheDayPlugin(BasePlugin):
     
     def _display_error(self):
         """Display error message."""
-        img = Image.new('RGB', (self.display_manager.matrix.width,
-                               self.display_manager.matrix.height),
+        img = Image.new('RGB', (self.display_manager.width,
+                               self.display_manager.height),
                        self.background_color)
         draw = ImageDraw.Draw(img)
         

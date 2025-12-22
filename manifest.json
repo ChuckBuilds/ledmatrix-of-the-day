@@ -12,6 +12,11 @@
     "content",
     "rotation"
   ],
+  "entry_point": "manager.py",
+  "class_name": "OfTheDayPlugin",
+  "compatible_versions": [
+    ">=2.0.0"
+  ],
   "display_modes": [
     "of_the_day"
   ],
