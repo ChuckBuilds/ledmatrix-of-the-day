@@ -172,16 +172,20 @@ class OfTheDayPlugin(BasePlugin):
         self.current_day = today
         self.current_items = {}
         
+        # Calculate day of year (1-365, or 1-366 for leap years)
+        day_of_year = today.timetuple().tm_yday
+        
         for category_name, data in self.data_files.items():
             try:
-                # Find today's entry
-                today_key = today.strftime("%Y-%m-%d")
+                # Find today's entry using day of year
+                day_key = str(day_of_year)
                 
-                if today_key in data:
-                    self.current_items[category_name] = data[today_key]
-                    self.logger.info(f"Loaded item for {category_name}: {data[today_key].get('word', data[today_key].get('title', 'N/A'))}")
+                if day_key in data:
+                    self.current_items[category_name] = data[day_key]
+                    item_title = data[day_key].get('word', data[day_key].get('title', 'N/A'))
+                    self.logger.info(f"Loaded item for {category_name} (day {day_of_year}): {item_title}")
                 else:
-                    self.logger.warning(f"No entry found for {today_key} in category {category_name}")
+                    self.logger.warning(f"No entry found for day {day_of_year} in category {category_name}")
             
             except Exception as e:
                 self.logger.error(f"Error loading today's item for {category_name}: {e}")
@@ -277,10 +281,10 @@ class OfTheDayPlugin(BasePlugin):
         x_pos = (self.display_manager.width - text_width) // 2
         draw.text((x_pos, 12), word, font=title_font, fill=self.title_color)
         
-        # Draw pronunciation or type
-        pronunciation = item_data.get('pronunciation', item_data.get('type', ''))
-        if pronunciation:
-            draw.text((2, self.display_manager.height - 8), pronunciation, 
+        # Draw subtitle (pronunciation, type, or subtitle)
+        subtitle = item_data.get('pronunciation', item_data.get('type', item_data.get('subtitle', '')))
+        if subtitle:
+            draw.text((2, self.display_manager.height - 8), subtitle, 
                      font=subtitle_font, fill=self.subtitle_color)
         
         self.display_manager.image = img.copy()
@@ -299,8 +303,8 @@ class OfTheDayPlugin(BasePlugin):
         except:
             font = ImageFont.load_default()
         
-        # Get definition or content
-        content = item_data.get('definition', item_data.get('content', item_data.get('text', 'No content')))
+        # Get definition or content (support both old and new formats)
+        content = item_data.get('definition', item_data.get('content', item_data.get('text', item_data.get('description', 'No content'))))
         
         # Simple word wrapping
         words = content.split()
