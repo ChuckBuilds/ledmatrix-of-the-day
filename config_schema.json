@@ -97,6 +97,12 @@
       "default": 40,
       "minimum": 10,
       "description": "How long to display each category in seconds"
+    },
+    "_file_manager": {
+      "type": "string",
+      "x-widget": "custom-html",
+      "x-html-file": "web_ui/file_manager.html",
+      "description": "Manage your of-the-day data files"
     }
   },
   "required": ["enabled"]
