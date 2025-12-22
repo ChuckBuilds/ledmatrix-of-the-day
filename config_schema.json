@@ -35,61 +35,25 @@
     },
     "categories": {
       "type": "object",
-      "properties": {
-        "word_of_the_day": {
-          "type": "object",
-          "properties": {
-            "enabled": {
-              "type": "boolean",
-              "default": true
-            },
-            "data_file": {
-              "type": "string",
-              "default": "of_the_day/word_of_the_day.json",
-              "description": "Path to data file (relative to plugin directory)"
-            },
-            "display_name": {
-              "type": "string",
-              "default": "Word of the Day"
-            }
+      "description": "Category configurations. Each key is a category ID (e.g., word_of_the_day). Categories are added/removed via the file manager.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "default": true,
+            "description": "Enable or disable this category"
+          },
+          "data_file": {
+            "type": "string",
+            "description": "Path to data file (relative to plugin directory)"
+          },
+          "display_name": {
+            "type": "string",
+            "description": "Display name shown in configuration"
           }
         },
-        "slovenian_word_of_the_day": {
-          "type": "object",
-          "properties": {
-            "enabled": {
-              "type": "boolean",
-              "default": false
-            },
-            "data_file": {
-              "type": "string",
-              "default": "of_the_day/slovenian_word_of_the_day.json",
-              "description": "Path to data file (relative to plugin directory)"
-            },
-            "display_name": {
-              "type": "string",
-              "default": "Slovenian Word"
-            }
-          }
-        },
-        "bible_verse_of_the_day": {
-          "type": "object",
-          "properties": {
-            "enabled": {
-              "type": "boolean",
-              "default": false
-            },
-            "data_file": {
-              "type": "string",
-              "default": "of_the_day/bible_verse_of_the_day.json",
-              "description": "Path to data file (relative to plugin directory)"
-            },
-            "display_name": {
-              "type": "string",
-              "default": "Bible Verse"
-            }
-          }
-        }
+        "required": ["enabled", "data_file", "display_name"]
       }
     },
     "display_duration": {
