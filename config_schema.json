@@ -35,6 +35,7 @@
     },
     "categories": {
       "type": "object",
+      "title": "Categories",
       "description": "Category configurations. Each key is a category ID (e.g., word_of_the_day). Categories are added/removed via the file manager.",
       "additionalProperties": {
         "type": "object",
@@ -62,11 +63,12 @@
       "minimum": 10,
       "description": "How long to display each category in seconds"
     },
-    "_file_manager": {
+    "file_manager": {
       "type": "string",
+      "title": "File Manager",
       "x-widget": "custom-html",
       "x-html-file": "web_ui/file_manager.html",
-      "description": "Manage your of-the-day data files"
+      "description": "Manage your of-the-day data files: upload, edit, delete, and create JSON files"
     }
   },
   "required": ["enabled"]
