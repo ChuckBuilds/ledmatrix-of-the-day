@@ -192,6 +192,21 @@
                     })
                 });
                 
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API error response:', errorText);
+                    showError('Failed to load files: HTTP ' + response.status);
+                    return;
+                }
+                
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Non-JSON response:', text.substring(0, 200));
+                    showError('Server returned non-JSON response');
+                    return;
+                }
+                
                 const data = await response.json();
                 if (data.status === 'success') {
                     renderFiles(data.files || []);
@@ -199,12 +214,18 @@
                     showError('Failed to load files: ' + (data.message || 'Unknown error'));
                 }
             } catch (error) {
+                console.error('Error loading files:', error);
                 showError('Error loading files: ' + error.message);
             }
         }
 
         function renderFiles(files) {
             const container = document.getElementById('file-list-container');
+            if (!container) {
+                console.error('File list container not found');
+                return;
+            }
+            
             if (!files || files.length === 0) {
                 container.innerHTML = '<p class="text-sm text-gray-500 text-center py-4">No data files found. Upload or create one to get started.</p>';
                 return;
@@ -290,6 +311,21 @@
                     headers: { 'Content-Type': 'application/json' }
                 });
 
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Upload API error:', errorText);
+                    showError('Upload failed: HTTP ' + response.status);
+                    return;
+                }
+                
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Non-JSON upload response:', text.substring(0, 200));
+                    showError('Server returned non-JSON response');
+                    return;
+                }
+                
                 const data = await response.json();
                 if (data.status === 'success') {
                     showSuccess('File uploaded successfully');
@@ -298,6 +334,7 @@
                     showError('Upload failed: ' + (data.message || 'Unknown error'));
                 }
             } catch (error) {
+                console.error('Error uploading file:', error);
                 showError('Error uploading file: ' + error.message);
             }
         }
@@ -314,6 +351,21 @@
                     })
                 });
 
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Get file API error:', errorText);
+                    showError('Failed to load file: HTTP ' + response.status);
+                    return;
+                }
+                
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Non-JSON get file response:', text.substring(0, 200));
+                    showError('Server returned non-JSON response');
+                    return;
+                }
+                
                 const data = await response.json();
                 if (data.status === 'success') {
                     currentEditingFile = filename;
@@ -324,6 +376,7 @@
                     showError('Failed to load file: ' + (data.message || 'Unknown error'));
                 }
             } catch (error) {
+                console.error('Error loading file:', error);
                 showError('Error loading file: ' + error.message);
             }
         }
@@ -360,6 +413,21 @@
                     })
                 });
 
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Save file API error:', errorText);
+                    showError('Save failed: HTTP ' + response.status);
+                    return;
+                }
+                
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Non-JSON save response:', text.substring(0, 200));
+                    showError('Server returned non-JSON response');
+                    return;
+                }
+                
                 const data = await response.json();
                 if (data.status === 'success') {
                     showSuccess('File saved successfully');
@@ -369,6 +437,7 @@
                     showError('Save failed: ' + (data.message || 'Unknown error'));
                 }
             } catch (error) {
+                console.error('Error saving file:', error);
                 showError('Error saving file: ' + error.message);
             }
         }
@@ -411,6 +480,21 @@
                     })
                 });
 
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Create file API error:', errorText);
+                    showError('Create failed: HTTP ' + response.status);
+                    return;
+                }
+                
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Non-JSON create response:', text.substring(0, 200));
+                    showError('Server returned non-JSON response');
+                    return;
+                }
+                
                 const data = await response.json();
                 if (data.status === 'success') {
                     showSuccess('File created successfully');
@@ -420,6 +504,7 @@
                     showError('Create failed: ' + (data.message || 'Unknown error'));
                 }
             } catch (error) {
+                console.error('Error creating file:', error);
                 showError('Error creating file: ' + error.message);
             }
         }
@@ -440,6 +525,21 @@
                     })
                 });
 
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Delete file API error:', errorText);
+                    showError('Delete failed: HTTP ' + response.status);
+                    return;
+                }
+                
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Non-JSON delete response:', text.substring(0, 200));
+                    showError('Server returned non-JSON response');
+                    return;
+                }
+                
                 const data = await response.json();
                 if (data.status === 'success') {
                     showSuccess('File deleted successfully');
@@ -448,6 +548,7 @@
                     showError('Delete failed: ' + (data.message || 'Unknown error'));
                 }
             } catch (error) {
+                console.error('Error deleting file:', error);
                 showError('Error deleting file: ' + error.message);
             }
         }
