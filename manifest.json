@@ -32,43 +32,5 @@
   "stars": 0,
   "downloads": 0,
   "verified": true,
-  "screenshot": "",
-  "web_ui_actions": [
-    {
-      "id": "list-files",
-      "type": "script",
-      "title": "List Files",
-      "script": "scripts/list_files.py"
-    },
-    {
-      "id": "upload-file",
-      "type": "script",
-      "title": "Upload File",
-      "script": "scripts/upload_file.py"
-    },
-    {
-      "id": "create-file",
-      "type": "script",
-      "title": "Create File",
-      "script": "scripts/create_file.py"
-    },
-    {
-      "id": "get-file",
-      "type": "script",
-      "title": "Get File",
-      "script": "scripts/get_file.py"
-    },
-    {
-      "id": "save-file",
-      "type": "script",
-      "title": "Save File",
-      "script": "scripts/save_file.py"
-    },
-    {
-      "id": "delete-file",
-      "type": "script",
-      "title": "Delete File",
-      "script": "scripts/delete_file.py"
-    }
-  ]
+  "screenshot": ""
 }
