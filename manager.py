@@ -365,10 +365,11 @@ class OfTheDayPlugin(BasePlugin):
     
     def _display_title(self, category_config: Dict, item_data: Dict):
         """Display the title/word with subtitle, matching old manager layout."""
-        img = Image.new('RGB', (self.display_manager.width, 
-                               self.display_manager.height), 
-                       self.background_color)
-        draw = ImageDraw.Draw(img)
+        # Clear display first
+        self.display_manager.clear()
+        
+        # Use display_manager's image and draw directly
+        draw = self.display_manager.draw
         
         # Load fonts - match old manager font usage
         try:
@@ -396,11 +397,13 @@ class OfTheDayPlugin(BasePlugin):
         margin_bottom = 1
         underline_space = 1
         
-        # Get title/word
-        title = item_data.get('word', item_data.get('title', 'N/A'))
+        # Get title/word (JSON uses "title" not "word")
+        title = item_data.get('title', item_data.get('word', 'N/A'))
+        self.logger.debug(f"Displaying title: {title}")
         
-        # Get subtitle (pronunciation, type, or subtitle) - this is shown below title in old manager
-        subtitle = item_data.get('pronunciation', item_data.get('type', item_data.get('subtitle', '')))
+        # Get subtitle (JSON uses "subtitle")
+        subtitle = item_data.get('subtitle', item_data.get('pronunciation', item_data.get('type', '')))
+        self.logger.debug(f"Displaying subtitle: {subtitle}")
         
         # Calculate title width for centering
         try:
@@ -458,15 +461,15 @@ class OfTheDayPlugin(BasePlugin):
                         self._draw_bdf_text(draw, body_font, line, line_x, current_y, color=self.subtitle_color)
                         current_y += body_height + 1
         
-        self.display_manager.image = img.copy()
         self.display_manager.update_display()
     
     def _display_content(self, category_config: Dict, item_data: Dict):
         """Display the definition/content, matching old manager layout."""
-        img = Image.new('RGB', (self.display_manager.width,
-                               self.display_manager.height),
-                       self.background_color)
-        draw = ImageDraw.Draw(img)
+        # Clear display first
+        self.display_manager.clear()
+        
+        # Use display_manager's image and draw directly
+        draw = self.display_manager.draw
         
         # Load fonts - match old manager
         try:
@@ -494,11 +497,13 @@ class OfTheDayPlugin(BasePlugin):
         margin_bottom = 1
         underline_space = 1
         
-        # Get title/word (for layout reference - we show title + underline + description)
-        title = item_data.get('word', item_data.get('title', 'N/A'))
+        # Get title/word (JSON uses "title")
+        title = item_data.get('title', item_data.get('word', 'N/A'))
+        self.logger.debug(f"Displaying content for title: {title}")
         
-        # Get definition or content (support both old and new formats)
-        description = item_data.get('definition', item_data.get('content', item_data.get('text', item_data.get('description', 'No content'))))
+        # Get description (JSON uses "description")
+        description = item_data.get('description', item_data.get('definition', item_data.get('content', item_data.get('text', 'No content'))))
+        self.logger.debug(f"Displaying description: {description[:50]}...")
         
         # Calculate title width for centering (for underline placement)
         try:
@@ -569,7 +574,6 @@ class OfTheDayPlugin(BasePlugin):
                     if i < len(actual_body_lines) - 1:  # Not the last line
                         current_y += body_height + space_between_lines
         
-        self.display_manager.image = img.copy()
         self.display_manager.update_display()
     
     def _display_no_data(self):
