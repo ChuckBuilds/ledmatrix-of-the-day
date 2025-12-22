@@ -255,84 +255,319 @@ class OfTheDayPlugin(BasePlugin):
             self.logger.error(f"Error displaying of-the-day: {e}")
             self._display_error()
     
+    def _wrap_text(self, text: str, max_width: int, font, max_lines: int = 10) -> List[str]:
+        """Wrap text to fit within max_width, similar to old manager."""
+        if not text:
+            return [""]
+        lines = []
+        current_line = []
+        words = text.split()
+        for word in words:
+            test_line = ' '.join(current_line + [word]) if current_line else word
+            try:
+                text_width = self.display_manager.get_text_width(test_line, font)
+            except Exception:
+                # Fallback calculation
+                if isinstance(font, ImageFont.ImageFont):
+                    bbox = font.getbbox(test_line)
+                    text_width = bbox[2] - bbox[0]
+                else:
+                    text_width = len(test_line) * 6
+            if text_width <= max_width:
+                current_line.append(word)
+            else:
+                if current_line:
+                    lines.append(' '.join(current_line))
+                    current_line = [word]
+                else:
+                    # Word is too long - truncate it
+                    truncated = word
+                    while len(truncated) > 0:
+                        try:
+                            test_width = self.display_manager.get_text_width(truncated + "...", font)
+                        except Exception:
+                            if isinstance(font, ImageFont.ImageFont):
+                                bbox = font.getbbox(truncated + "...")
+                                test_width = bbox[2] - bbox[0]
+                            else:
+                                test_width = len(truncated + "...") * 6
+                        if test_width <= max_width:
+                            lines.append(truncated + "...")
+                            break
+                        truncated = truncated[:-1]
+                    if not truncated:
+                        lines.append(word[:10] + "...")
+            if len(lines) >= max_lines:
+                break
+        if current_line and len(lines) < max_lines:
+            lines.append(' '.join(current_line))
+        return lines[:max_lines]
+    
+    def _draw_bdf_text(self, draw, font, text: str, x: int, y: int, color: tuple = (255, 255, 255)):
+        """Draw text supporting both BDF (FreeType Face) and PIL TTF fonts, similar to old manager."""
+        try:
+            # If we have a PIL font, use native text rendering
+            if isinstance(font, ImageFont.ImageFont):
+                draw.text((x, y), text, fill=color, font=font)
+                return
+            
+            # Try to import freetype
+            try:
+                import freetype
+            except ImportError:
+                # If freetype not available, fallback to PIL
+                draw.text((x, y), text, fill=color, font=ImageFont.load_default())
+                return
+            
+            # For BDF fonts (FreeType Face)
+            if isinstance(font, freetype.Face):
+                # Compute baseline from font ascender so caller can pass top-left y
+                try:
+                    ascender_px = font.size.ascender >> 6
+                except Exception:
+                    ascender_px = 0
+                baseline_y = y + ascender_px
+                
+                # Render BDF glyphs manually
+                current_x = x
+                for char in text:
+                    font.load_char(char)
+                    bitmap = font.glyph.bitmap
+                    
+                    # Get glyph metrics
+                    glyph_left = font.glyph.bitmap_left
+                    glyph_top = font.glyph.bitmap_top
+                    
+                    for i in range(bitmap.rows):
+                        for j in range(bitmap.width):
+                            try:
+                                byte_index = i * bitmap.pitch + (j // 8)
+                                if byte_index < len(bitmap.buffer):
+                                    byte = bitmap.buffer[byte_index]
+                                    if byte & (1 << (7 - (j % 8))):
+                                        # Calculate actual pixel position
+                                        pixel_x = current_x + glyph_left + j
+                                        pixel_y = baseline_y - glyph_top + i
+                                        # Only draw if within bounds
+                                        if (0 <= pixel_x < self.display_manager.width and 
+                                            0 <= pixel_y < self.display_manager.height):
+                                            draw.point((pixel_x, pixel_y), fill=color)
+                            except IndexError:
+                                continue
+                    current_x += font.glyph.advance.x >> 6
+        except Exception as e:
+            self.logger.error(f"Error in _draw_bdf_text: {e}", exc_info=True)
+            # Fallback to simple text drawing
+            try:
+                draw.text((x, y), text, fill=color, font=ImageFont.load_default())
+            except:
+                pass
+    
     def _display_title(self, category_config: Dict, item_data: Dict):
-        """Display the title/word."""
+        """Display the title/word with subtitle, matching old manager layout."""
         img = Image.new('RGB', (self.display_manager.width, 
                                self.display_manager.height), 
                        self.background_color)
         draw = ImageDraw.Draw(img)
         
-        # Load fonts
+        # Load fonts - match old manager font usage
         try:
             title_font = ImageFont.truetype('assets/fonts/PressStart2P-Regular.ttf', 8)
-            subtitle_font = ImageFont.truetype('assets/fonts/4x6-font.ttf', 6)
         except:
-            title_font = ImageFont.load_default()
-            subtitle_font = ImageFont.load_default()
+            title_font = self.display_manager.small_font if hasattr(self.display_manager, 'small_font') else ImageFont.load_default()
         
-        # Draw category name
-        category_display = category_config.get('display_name', 'Of The Day')
-        draw.text((2, 2), category_display, font=subtitle_font, fill=self.subtitle_color)
+        try:
+            body_font = ImageFont.truetype('assets/fonts/4x6-font.ttf', 6)
+        except:
+            body_font = self.display_manager.extra_small_font if hasattr(self.display_manager, 'extra_small_font') else ImageFont.load_default()
         
-        # Draw word/title
-        word = item_data.get('word', item_data.get('title', 'N/A'))
-        bbox = draw.textbbox((0, 0), word, font=title_font)
-        text_width = bbox[2] - bbox[0]
-        x_pos = (self.display_manager.width - text_width) // 2
-        draw.text((x_pos, 12), word, font=title_font, fill=self.title_color)
+        # Get font heights
+        try:
+            title_height = self.display_manager.get_font_height(title_font)
+        except Exception:
+            title_height = 8
+        try:
+            body_height = self.display_manager.get_font_height(body_font)
+        except Exception:
+            body_height = 8
         
-        # Draw subtitle (pronunciation, type, or subtitle)
+        # Layout matching old manager: margin_top = 8
+        margin_top = 8
+        margin_bottom = 1
+        underline_space = 1
+        
+        # Get title/word
+        title = item_data.get('word', item_data.get('title', 'N/A'))
+        
+        # Get subtitle (pronunciation, type, or subtitle) - this is shown below title in old manager
         subtitle = item_data.get('pronunciation', item_data.get('type', item_data.get('subtitle', '')))
+        
+        # Calculate title width for centering
+        try:
+            title_width = self.display_manager.get_text_width(title, title_font)
+        except Exception:
+            if isinstance(title_font, ImageFont.ImageFont):
+                bbox = title_font.getbbox(title)
+                title_width = bbox[2] - bbox[0]
+            else:
+                title_width = len(title) * 6
+        
+        # Center the title horizontally
+        title_x = (self.display_manager.width - title_width) // 2
+        title_y = margin_top
+        
+        # Draw title
+        self._draw_bdf_text(draw, title_font, title, title_x, title_y, color=self.title_color)
+        
+        # Draw underline below title (like old manager)
+        underline_y = title_y + title_height + 1
+        underline_x_start = title_x
+        underline_x_end = title_x + title_width
+        draw.line([(underline_x_start, underline_y), (underline_x_end, underline_y)], 
+                 fill=self.title_color, width=1)
+        
+        # Draw subtitle below underline (centered, like old manager)
         if subtitle:
-            draw.text((2, self.display_manager.height - 8), subtitle, 
-                     font=subtitle_font, fill=self.subtitle_color)
+            # Wrap subtitle text if needed
+            available_width = self.display_manager.width - 4
+            wrapped_subtitle_lines = self._wrap_text(subtitle, available_width, body_font, max_lines=3)
+            actual_subtitle_lines = [line for line in wrapped_subtitle_lines if line.strip()]
+            
+            if actual_subtitle_lines:
+                # Calculate spacing - similar to old manager's dynamic spacing
+                total_subtitle_height = len(actual_subtitle_lines) * body_height
+                available_space = self.display_manager.height - underline_y - margin_bottom
+                space_after_underline = max(2, (available_space - total_subtitle_height) // 2)
+                
+                subtitle_start_y = underline_y + space_after_underline + underline_space
+                current_y = subtitle_start_y
+                
+                for line in actual_subtitle_lines:
+                    if line.strip():
+                        # Center each line of subtitle
+                        try:
+                            line_width = self.display_manager.get_text_width(line, body_font)
+                        except Exception:
+                            if isinstance(body_font, ImageFont.ImageFont):
+                                bbox = body_font.getbbox(line)
+                                line_width = bbox[2] - bbox[0]
+                            else:
+                                line_width = len(line) * 6
+                        line_x = (self.display_manager.width - line_width) // 2
+                        
+                        self._draw_bdf_text(draw, body_font, line, line_x, current_y, color=self.subtitle_color)
+                        current_y += body_height + 1
         
         self.display_manager.image = img.copy()
         self.display_manager.update_display()
     
     def _display_content(self, category_config: Dict, item_data: Dict):
-        """Display the definition/content."""
+        """Display the definition/content, matching old manager layout."""
         img = Image.new('RGB', (self.display_manager.width,
                                self.display_manager.height),
                        self.background_color)
         draw = ImageDraw.Draw(img)
         
-        # Load font
+        # Load fonts - match old manager
         try:
-            font = ImageFont.truetype('assets/fonts/4x6-font.ttf', 6)
+            title_font = ImageFont.truetype('assets/fonts/PressStart2P-Regular.ttf', 8)
         except:
-            font = ImageFont.load_default()
+            title_font = self.display_manager.small_font if hasattr(self.display_manager, 'small_font') else ImageFont.load_default()
+        
+        try:
+            body_font = ImageFont.truetype('assets/fonts/4x6-font.ttf', 6)
+        except:
+            body_font = self.display_manager.extra_small_font if hasattr(self.display_manager, 'extra_small_font') else ImageFont.load_default()
+        
+        # Get font heights
+        try:
+            title_height = self.display_manager.get_font_height(title_font)
+        except Exception:
+            title_height = 8
+        try:
+            body_height = self.display_manager.get_font_height(body_font)
+        except Exception:
+            body_height = 8
+        
+        # Layout matching old manager: margin_top = 8
+        margin_top = 8
+        margin_bottom = 1
+        underline_space = 1
+        
+        # Get title/word (for layout reference - we show title + underline + description)
+        title = item_data.get('word', item_data.get('title', 'N/A'))
         
         # Get definition or content (support both old and new formats)
-        content = item_data.get('definition', item_data.get('content', item_data.get('text', item_data.get('description', 'No content'))))
+        description = item_data.get('definition', item_data.get('content', item_data.get('text', item_data.get('description', 'No content'))))
         
-        # Simple word wrapping
-        words = content.split()
-        lines = []
-        current_line = []
-        max_width = self.display_manager.width - 4
-        
-        for word in words:
-            test_line = ' '.join(current_line + [word])
-            bbox = draw.textbbox((0, 0), test_line, font=font)
-            if bbox[2] - bbox[0] <= max_width:
-                current_line.append(word)
+        # Calculate title width for centering (for underline placement)
+        try:
+            title_width = self.display_manager.get_text_width(title, title_font)
+        except Exception:
+            if isinstance(title_font, ImageFont.ImageFont):
+                bbox = title_font.getbbox(title)
+                title_width = bbox[2] - bbox[0]
             else:
-                if current_line:
-                    lines.append(' '.join(current_line))
-                current_line = [word]
+                title_width = len(title) * 6
         
-        if current_line:
-            lines.append(' '.join(current_line))
+        # Center the title horizontally (same position as in _display_title)
+        title_x = (self.display_manager.width - title_width) // 2
+        title_y = margin_top
         
-        # Draw lines (max 4-5 lines depending on height)
-        y_pos = 2
-        line_height = 7
-        max_lines = (self.display_manager.height - 4) // line_height
+        # Draw title (same as title screen for consistency)
+        self._draw_bdf_text(draw, title_font, title, title_x, title_y, color=self.title_color)
         
-        for i, line in enumerate(lines[:max_lines]):
-            draw.text((2, y_pos), line, font=font, fill=self.content_color)
-            y_pos += line_height
+        # Draw underline below title (same as title screen)
+        underline_y = title_y + title_height + 1
+        underline_x_start = title_x
+        underline_x_end = title_x + title_width
+        draw.line([(underline_x_start, underline_y), (underline_x_end, underline_y)], 
+                 fill=self.title_color, width=1)
+        
+        # Wrap description text
+        available_width = self.display_manager.width - 4
+        max_lines = 10
+        wrapped_lines = self._wrap_text(description, available_width, body_font, max_lines=max_lines)
+        actual_body_lines = [line for line in wrapped_lines if line.strip()]
+        
+        if actual_body_lines:
+            # Calculate dynamic spacing - similar to old manager
+            num_body_lines = len(actual_body_lines)
+            body_content_height = num_body_lines * body_height
+            available_space = self.display_manager.height - underline_y - margin_bottom
+            
+            if body_content_height < available_space:
+                # Distribute extra space: some after underline, rest between lines
+                extra_space = available_space - body_content_height
+                space_after_underline = max(2, int(extra_space * 0.3))
+                space_between_lines = max(1, int(extra_space * 0.7 / max(1, num_body_lines - 1))) if num_body_lines > 1 else 0
+            else:
+                # Tight spacing
+                space_after_underline = 4
+                space_between_lines = 1
+            
+            # Draw body text with dynamic spacing
+            body_start_y = underline_y + space_after_underline + underline_space + 1  # +1 to match old manager's shift
+            current_y = body_start_y
+            
+            for i, line in enumerate(actual_body_lines):
+                if line.strip():
+                    # Center each line of body text (like old manager)
+                    try:
+                        line_width = self.display_manager.get_text_width(line, body_font)
+                    except Exception:
+                        if isinstance(body_font, ImageFont.ImageFont):
+                            bbox = body_font.getbbox(line)
+                            line_width = bbox[2] - bbox[0]
+                        else:
+                            line_width = len(line) * 6
+                    line_x = (self.display_manager.width - line_width) // 2
+                    
+                    self._draw_bdf_text(draw, body_font, line, line_x, current_y, color=self.subtitle_color)
+                    
+                    # Move to next line position
+                    if i < len(actual_body_lines) - 1:  # Not the last line
+                        current_y += body_height + space_between_lines
         
         self.display_manager.image = img.copy()
         self.display_manager.update_display()
