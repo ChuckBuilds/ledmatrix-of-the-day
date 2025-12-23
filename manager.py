@@ -65,6 +65,11 @@ class OfTheDayPlugin(BasePlugin):
         self.last_rotation_time = time.time()
         self.last_category_rotation_time = time.time()
         
+        # Display state tracking (to avoid unnecessary redraws)
+        self.last_displayed_category = None
+        self.last_displayed_rotation_state = None
+        self.display_needs_update = True  # Force initial display
+        
         # Data files
         self.data_files = {}
         
@@ -171,6 +176,7 @@ class OfTheDayPlugin(BasePlugin):
         
         self.current_day = today
         self.current_items = {}
+        self.display_needs_update = True  # Force redraw when day changes
         
         # Calculate day of year (1-365, or 1-366 for leap years)
         day_of_year = today.timetuple().tm_yday
@@ -214,7 +220,9 @@ class OfTheDayPlugin(BasePlugin):
             force_clear: If True, clear display before rendering
         """
         if not self.current_items:
-            self._display_no_data()
+            if self.last_displayed_category != "NO_DATA":
+                self.last_displayed_category = "NO_DATA"
+                self._display_no_data()
             return
         
         try:
@@ -224,16 +232,21 @@ class OfTheDayPlugin(BasePlugin):
                                 self.categories.get(cat, {}).get('enabled', True)]
             
             if not enabled_categories:
-                self._display_no_data()
+                if self.last_displayed_category != "NO_DATA":
+                    self.last_displayed_category = "NO_DATA"
+                    self._display_no_data()
                 return
             
             # Rotate categories
             current_time = time.time()
+            category_changed = False
             if current_time - self.last_category_rotation_time >= self.display_rotate_interval:
                 self.current_category_index = (self.current_category_index + 1) % len(enabled_categories)
                 self.last_category_rotation_time = current_time
                 self.rotation_state = 0  # Reset rotation when changing categories
                 self.last_rotation_time = current_time
+                category_changed = True
+                self.display_needs_update = True
             
             # Get current category
             category_name = enabled_categories[self.current_category_index]
@@ -241,19 +254,38 @@ class OfTheDayPlugin(BasePlugin):
             item_data = self.current_items.get(category_name, {})
             
             # Rotate display content
+            rotation_changed = False
             if current_time - self.last_rotation_time >= self.subtitle_rotate_interval:
                 self.rotation_state = (self.rotation_state + 1) % 2
                 self.last_rotation_time = current_time
+                rotation_changed = True
+                self.display_needs_update = True
             
-            # Display based on rotation state
-            if self.rotation_state == 0:
-                self._display_title(category_config, item_data)
-            else:
-                self._display_content(category_config, item_data)
+            # Check if we need to update the display
+            # Only redraw if category changed, rotation state changed, or force_clear
+            if (self.display_needs_update or 
+                force_clear or 
+                category_changed or 
+                rotation_changed or 
+                self.last_displayed_category != category_name or 
+                self.last_displayed_rotation_state != self.rotation_state):
+                
+                # Update tracking state
+                self.last_displayed_category = category_name
+                self.last_displayed_rotation_state = self.rotation_state
+                self.display_needs_update = False
+                
+                # Display based on rotation state
+                if self.rotation_state == 0:
+                    self._display_title(category_config, item_data)
+                else:
+                    self._display_content(category_config, item_data)
         
         except Exception as e:
             self.logger.error(f"Error displaying of-the-day: {e}")
-            self._display_error()
+            if self.last_displayed_category != "ERROR":
+                self.last_displayed_category = "ERROR"
+                self._display_error()
     
     def _wrap_text(self, text: str, max_width: int, font, max_lines: int = 10) -> List[str]:
         """Wrap text to fit within max_width, similar to old manager."""
