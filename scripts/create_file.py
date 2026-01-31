@@ -9,9 +9,8 @@ import json
 import sys
 from pathlib import Path
 
-# Get plugin directory
-LEDMATRIX_ROOT = os.environ.get('LEDMATRIX_ROOT', os.getcwd())
-plugin_dir = Path(LEDMATRIX_ROOT) / 'plugins' / 'ledmatrix-of-the-day'
+# Get plugin directory (scripts/ -> plugin root)
+plugin_dir = Path(__file__).parent.parent
 data_dir = plugin_dir / 'of_the_day'
 data_dir.mkdir(parents=True, exist_ok=True)
 

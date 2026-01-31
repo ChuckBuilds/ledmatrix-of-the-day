@@ -32,5 +32,42 @@
   "stars": 0,
   "downloads": 0,
   "verified": true,
-  "screenshot": ""
+  "screenshot": "",
+  "web_ui_actions": [
+    {
+      "id": "list-files",
+      "type": "script",
+      "script": "scripts/list_files.py"
+    },
+    {
+      "id": "upload-file",
+      "type": "script",
+      "script": "scripts/upload_file.py"
+    },
+    {
+      "id": "get-file",
+      "type": "script",
+      "script": "scripts/get_file.py"
+    },
+    {
+      "id": "save-file",
+      "type": "script",
+      "script": "scripts/save_file.py"
+    },
+    {
+      "id": "delete-file",
+      "type": "script",
+      "script": "scripts/delete_file.py"
+    },
+    {
+      "id": "create-file",
+      "type": "script",
+      "script": "scripts/create_file.py"
+    },
+    {
+      "id": "toggle-category",
+      "type": "script",
+      "script": "scripts/toggle_category.py"
+    }
+  ]
 }

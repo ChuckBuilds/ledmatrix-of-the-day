@@ -692,6 +692,33 @@ class OfTheDayPlugin(BasePlugin):
         })
         return info
     
+    def on_config_change(self, config: Dict[str, Any]) -> None:
+        """Handle configuration changes (called when user updates config via web UI)."""
+        self.logger.info("Config changed, reloading categories")
+
+        # Update configuration
+        self.config = config
+        self.update_interval = config.get('update_interval', 3600)
+        self.display_rotate_interval = config.get('display_rotate_interval', 20)
+        self.subtitle_rotate_interval = config.get('subtitle_rotate_interval', 10)
+        self.categories = config.get('categories', {})
+        self.category_order = config.get('category_order', [])
+
+        # Reset state
+        self.current_category_index = 0
+        self.rotation_state = 0
+        self.display_needs_update = True
+
+        # Reload data files (respects enabled status)
+        self.data_files = {}
+        self._load_data_files()
+
+        # Reload today's items
+        self.current_day = None  # Force reload
+        self._load_todays_items()
+
+        self.logger.info(f"Config reloaded: {len(self.data_files)} categories enabled")
+
     def cleanup(self) -> None:
         """Cleanup resources."""
         self.current_items = {}

@@ -252,6 +252,81 @@
             font-size: 0.875rem;
             margin-bottom: 1rem;
         }
+
+        /* Toggle Switch Styles */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .toggle-label {
+            font-size: 0.75rem;
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #d1d5db;
+            transition: 0.3s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background-color: #22c55e;
+        }
+
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+        }
+
+        .toggle-switch input:disabled + .toggle-slider {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .file-card.disabled {
+            opacity: 0.6;
+        }
+
+        .file-card.disabled .file-icon {
+            background: #f3f4f6;
+            color: #9ca3af;
+        }
     </style>
 
     <!-- Header -->
@@ -457,7 +532,7 @@
                 console.error('File list container not found');
                 return;
             }
-            
+
             if (!files || files.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
@@ -472,12 +547,21 @@
             container.innerHTML = `
                 <div class="file-list-grid">
                     ${files.map(file => `
-                        <div class="file-card" onclick="editFile('${file.filename}')">
+                        <div class="file-card ${file.enabled === false ? 'disabled' : ''}" onclick="editFile('${file.filename}')">
+                            <div class="toggle-container" onclick="event.stopPropagation()">
+                                <span class="toggle-label">${file.enabled !== false ? 'Enabled' : 'Disabled'}</span>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" ${file.enabled !== false ? 'checked' : ''}
+                                           onchange="toggleCategory('${file.category_name}', this.checked)">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
                             <div class="file-icon">
                                 <i class="fas fa-file-code"></i>
                             </div>
-                            <div class="file-name">${escapeHtml(file.filename)}</div>
+                            <div class="file-name">${escapeHtml(file.display_name || file.filename)}</div>
                             <div class="file-meta">
+                                <div><i class="fas fa-file mr-1"></i> ${escapeHtml(file.filename)}</div>
                                 <div><i class="fas fa-database mr-1"></i> ${file.entry_count || 0} entries</div>
                                 <div><i class="fas fa-weight-hanging mr-1"></i> ${formatFileSize(file.size || 0)}</div>
                                 <div><i class="fas fa-clock mr-1"></i> ${formatDate(file.modified || '')}</div>
@@ -907,6 +991,54 @@
                 showError('Error creating file: ' + error.message);
                 createBtn.disabled = false;
                 createBtn.innerHTML = originalText;
+            }
+        }
+
+        // Toggle category enabled/disabled
+        async function toggleCategory(categoryName, enabled) {
+            try {
+                const response = await fetch('/api/v3/plugins/action', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        plugin_id: PLUGIN_ID,
+                        action_id: 'toggle-category',
+                        params: {
+                            category_name: categoryName,
+                            enabled: enabled
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Toggle API error:', errorText);
+                    showError('Failed to toggle category: HTTP ' + response.status);
+                    loadFiles(); // Reload to reset toggle state
+                    return;
+                }
+
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Non-JSON toggle response:', text.substring(0, 200));
+                    showError('Server returned non-JSON response');
+                    loadFiles();
+                    return;
+                }
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    showSuccess(data.message || `Category ${enabled ? 'enabled' : 'disabled'}`);
+                    loadFiles(); // Reload to update UI
+                } else {
+                    showError('Toggle failed: ' + (data.message || 'Unknown error'));
+                    loadFiles();
+                }
+            } catch (error) {
+                console.error('Error toggling category:', error);
+                showError('Error toggling category: ' + error.message);
+                loadFiles();
             }
         }
 
